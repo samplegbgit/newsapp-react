@@ -10,49 +10,43 @@ const News = (props) => {
   const [totalResults, setTotalResults] = useState(0);
 
   const capitalise = (str) => str.charAt(0).toUpperCase() + str.slice(1);
-  const proxy = "https://cors-anywhere.herokuapp.com/";
+  const proxyPrefix = "https://corsproxy.io/?url=";
 
-  const updateNews = async () => {
+  const fetchData = async (pageNumber = page) => {
     props.setProgress(10);
-    const url = `${proxy}https://newsapi.org/v2/top-headlines?country=${props.country}&category=${props.category}&apiKey=${props.apiKey}&page=${page}&pageSize=${props.pageSize}`;
+    const url = `https://newsapi.org/v2/top-headlines?country=${props.country}&category=${props.category}&apiKey=${props.apiKey}&page=${pageNumber}&pageSize=${props.pageSize}`;
+    const fetchUrl = `${proxyPrefix}${encodeURIComponent(url)}`;
     setLoading(true);
+
     try {
-      const response = await fetch(url);
+      const response = await fetch(fetchUrl);
       props.setProgress(40);
       const pd = await response.json();
       props.setProgress(80);
 
       console.log(pd);
-      setArticles(pd.articles ?? []);           // fallback to empty array
-      setTotalResults(pd.totalResults ?? 0);   // fallback to zero
+      setArticles(pd.articles ?? []);
+      setTotalResults(pd.totalResults ?? 0);
     } catch (err) {
       console.error("Error fetching news:", err);
       setArticles([]);
       setTotalResults(0);
     }
+
     setLoading(false);
     props.setProgress(100);
   };
 
   useEffect(() => {
     document.title = `${capitalise(props.category)} - NewsMonkey`;
-    updateNews();
+    fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchMoreData = async () => {
     const nextPage = page + 1;
-    const url = `${proxy}https://newsapi.org/v2/top-headlines?country=${props.country}&category=${props.category}&apiKey=${props.apiKey}&page=${nextPage}&pageSize=${props.pageSize}`;
     setPage(nextPage);
-    try {
-      const response = await fetch(url);
-      const pd = await response.json();
-      console.log(pd);
-      setArticles(prev => prev.concat(pd.articles ?? []));
-      setTotalResults(pd.totalResults ?? totalResults);
-    } catch (err) {
-      console.error("Error loading more news:", err);
-    }
+    await fetchData(nextPage);
   };
 
   return (
@@ -62,18 +56,18 @@ const News = (props) => {
       </h1>
       {loading && <Spinner />}
       <InfiniteScroll
-        dataLength={articles?.length || 0}
+        dataLength={articles.length}
         next={fetchMoreData}
-        hasMore={(articles?.length ?? 0) < (totalResults ?? 0)}
+        hasMore={articles.length < totalResults}
         loader={<Spinner />}
       >
         <div className="container">
           <div className="row">
-            {(articles ?? []).map((el) => (
+            {articles.map((el) => (
               <div className="col-md-4" key={el.url}>
                 <NewsItem
-                  title={el.title ?? ""}
-                  description={el.description ?? ""}
+                  title={el.title || ""}
+                  description={el.description || ""}
                   imageUrl={el.urlToImage}
                   newsUrl={el.url}
                   author={el.author}
